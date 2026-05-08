@@ -34,6 +34,7 @@
       width: 92%;
       max-width: 400px;
       text-align: center;
+      padding: 40px 0;
     }
     .title {
       font-family: 'Noto Serif SC', serif;
@@ -49,25 +50,38 @@
       text-transform: uppercase;
       margin-bottom: 32px;
     }
-
-    /* SCAN VIEW */
-    #scan-view { display: block; }
+    #start-view { display: block; }
+    .btn {
+      width: 100%;
+      padding: 16px;
+      background: rgba(200, 169, 110, 0.15);
+      border: 1px solid rgba(200, 169, 110, 0.4);
+      border-radius: 8px;
+      color: #c8a96e;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .btn:active { opacity: 0.7; }
+    #scan-view { display: none; }
     #reader {
       width: 100%;
       border-radius: 12px;
       overflow: hidden;
       border: 1px solid rgba(200, 169, 110, 0.3);
-      margin-bottom: 20px;
+      margin-bottom: 16px;
+      min-height: 300px;
     }
-    #reader video { border-radius: 12px; }
     .scan-hint {
       font-size: 12px;
       color: rgba(240, 230, 211, 0.45);
       letter-spacing: 1px;
-      margin-top: 12px;
+      margin-bottom: 16px;
     }
-
-    /* RESULT VIEW */
     #result-view { display: none; }
     .card {
       background: rgba(20, 10, 5, 0.78);
@@ -87,65 +101,17 @@
     .status.success { color: #c8a96e; }
     .status.warning { color: #e0a030; }
     .status.error { color: #8B2020; }
-    .divider {
-      width: 40px; height: 1px;
-      background: rgba(200, 169, 110, 0.4);
-      margin: 0 auto 20px;
-    }
+    .divider { width: 40px; height: 1px; background: rgba(200, 169, 110, 0.4); margin: 0 auto 20px; }
     .name-cn {
       font-family: 'Noto Serif SC', serif;
-      font-size: 28px;
-      font-weight: 700;
-      color: #f0e6d3;
-      letter-spacing: 4px;
-      margin-bottom: 6px;
+      font-size: 28px; font-weight: 700;
+      color: #f0e6d3; letter-spacing: 4px; margin-bottom: 6px;
     }
-    .name-en {
-      font-size: 13px;
-      color: rgba(240, 230, 211, 0.7);
-      letter-spacing: 1px;
-      margin-bottom: 8px;
-    }
-    .role {
-      font-family: 'Noto Serif SC', serif;
-      font-size: 12px;
-      color: rgba(200, 169, 110, 0.9);
-      letter-spacing: 2px;
-    }
-    .detail {
-      font-size: 11px;
-      color: rgba(200, 169, 110, 0.6);
-      letter-spacing: 1px;
-      margin-top: 16px;
-    }
-    .event-name {
-      font-size: 10px;
-      color: rgba(240, 230, 211, 0.3);
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-top: 24px;
-    }
-    .btn-scan-again {
-      width: 100%;
-      padding: 14px;
-      background: rgba(200, 169, 110, 0.15);
-      border: 1px solid rgba(200, 169, 110, 0.4);
-      border-radius: 8px;
-      color: #c8a96e;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      cursor: pointer;
-    }
-    .btn-scan-again:active { opacity: 0.7; }
-
-    /* LOADING */
-    #loading-view {
-      display: none;
-      padding: 60px 0;
-    }
+    .name-en { font-size: 13px; color: rgba(240, 230, 211, 0.7); letter-spacing: 1px; margin-bottom: 8px; }
+    .role { font-family: 'Noto Serif SC', serif; font-size: 12px; color: rgba(200, 169, 110, 0.9); letter-spacing: 2px; }
+    .detail { font-size: 11px; color: rgba(200, 169, 110, 0.6); letter-spacing: 1px; margin-top: 16px; }
+    .event-name { font-size: 10px; color: rgba(240, 230, 211, 0.3); letter-spacing: 2px; text-transform: uppercase; margin-top: 24px; }
+    #loading-view { display: none; padding: 60px 0; }
     .spinner {
       width: 40px; height: 40px;
       border: 2px solid rgba(200, 169, 110, 0.2);
@@ -155,11 +121,7 @@
       margin: 0 auto 16px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-text {
-      font-size: 12px;
-      color: rgba(200, 169, 110, 0.6);
-      letter-spacing: 2px;
-    }
+    .loading-text { font-size: 12px; color: rgba(200, 169, 110, 0.6); letter-spacing: 2px; }
   </style>
 </head>
 <body>
@@ -168,9 +130,14 @@
   <div class="title">寻昔纪远</div>
   <div class="subtitle">Crew Check-in</div>
 
+  <div id="start-view">
+    <button class="btn" onclick="startScanner()">开始扫描</button>
+  </div>
+
   <div id="scan-view">
     <div id="reader"></div>
     <div class="scan-hint">将 QR Code 对准框内</div>
+    <button class="btn" onclick="stopScanner()">停止扫描</button>
   </div>
 
   <div id="loading-view">
@@ -189,79 +156,75 @@
       <div class="detail" id="res-detail"></div>
       <div class="event-name">寻昔纪远 · Culture Camp 2026</div>
     </div>
-    <button class="btn-scan-again" onclick="resetScanner()">再次扫描</button>
+    <button class="btn" onclick="resetScanner()">再次扫描</button>
   </div>
 </div>
 
 <script>
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzZstKPazsHqI4SkQWzZ8penmmWF3UTsX3po5hnZe93qQIBXhrcE1h4Lk1B_0hX2xbM/exec";
   let html5QrCode = null;
+  let isScanning = false;
+
+  function show(id) {
+    ['start-view','scan-view','loading-view','result-view'].forEach(v => {
+      document.getElementById(v).style.display = v === id ? 'block' : 'none';
+    });
+  }
 
   function startScanner() {
-    document.getElementById('scan-view').style.display = 'block';
-    document.getElementById('result-view').style.display = 'none';
-    document.getElementById('loading-view').style.display = 'none';
-
+    show('scan-view');
     html5QrCode = new Html5Qrcode("reader");
     html5QrCode.start(
       { facingMode: "environment" },
       { fps: 10, qrbox: { width: 250, height: 250 } },
       (decodedText) => {
+        if (isScanning) return;
+        isScanning = true;
         html5QrCode.stop().then(() => {
           processQR(decodedText);
         });
       },
       () => {}
-    );
+    ).catch(() => {
+      html5QrCode.start(
+        { facingMode: "user" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          if (isScanning) return;
+          isScanning = true;
+          html5QrCode.stop().then(() => {
+            processQR(decodedText);
+          });
+        },
+        () => {}
+      );
+    });
   }
 
-function processQR(url) {
-  document.getElementById('scan-view').style.display = 'none';
-  document.getElementById('loading-view').style.display = 'block';
-
-  let id = null;
-  try {
-    const urlObj = new URL(url);
-    id = urlObj.searchParams.get('id');
-  } catch(e) {
-    id = url;
+  function stopScanner() {
+    if (html5QrCode) {
+      html5QrCode.stop().then(() => { show('start-view'); });
+    }
   }
 
-  if (!id) {
-    showResult('❌', 'error', 'Invalid QR Code', '', '', '');
-    return;
-  }
+  function processQR(url) {
+    show('loading-view');
+    let id = null;
+    try {
+      const urlObj = new URL(url);
+      id = urlObj.searchParams.get('id');
+    } catch(e) { id = url; }
 
-  window.location.href = `$https://script.google.com/macros/s/AKfycbzZstKPazsHqI4SkQWzZ8penmmWF3UTsX3po5hnZe93qQIBXhrcE1h4Lk1B_0hX2xbM/exec?id=${id}`;
-}
+    if (!id) {
+      showResult('❌', 'error', 'Invalid QR Code', '', '', '');
+      return;
+    }
 
-    fetch(`${WEB_APP_URL}?id=${id}`)
-      .then(res => res.text())
-      .then(html => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const icon = doc.querySelector('.icon')?.textContent || '❌';
-        const status = doc.querySelector('.status')?.textContent || 'Error';
-        const nameCN = doc.querySelector('.name-cn')?.textContent || '';
-        const nameEN = doc.querySelector('.name-en')?.textContent || '';
-        const role = doc.querySelector('.role')?.textContent || '';
-        const detail = doc.querySelector('.detail')?.textContent || '';
-        showResult(icon, getStatusClass(icon), status, nameCN, nameEN, role, detail);
-      })
-      .catch(() => {
-        showResult('❌', 'error', 'Connection Error', '', '', '');
-      });
-  }
-
-  function getStatusClass(icon) {
-    if (icon.includes('✅')) return 'success';
-    if (icon.includes('⚠️')) return 'warning';
-    return 'error';
+    window.location.href = `$https://script.google.com/macros/s/AKfycbzZstKPazsHqI4SkQWzZ8penmmWF3UTsX3po5hnZe93qQIBXhrcE1h4Lk1B_0hX2xbM/exec?id=${id}`;
   }
 
   function showResult(icon, statusClass, status, nameCN, nameEN, role, detail) {
-    document.getElementById('loading-view').style.display = 'none';
-    document.getElementById('result-view').style.display = 'block';
+    show('result-view');
     document.getElementById('res-icon').textContent = icon;
     document.getElementById('res-status').textContent = status;
     document.getElementById('res-status').className = `status ${statusClass}`;
@@ -270,18 +233,12 @@ function processQR(url) {
     document.getElementById('res-role').textContent = role;
     document.getElementById('res-detail').textContent = detail;
     document.getElementById('res-divider').style.display = nameCN ? 'block' : 'none';
-
-    if (statusClass === 'success') {
-      setTimeout(() => resetScanner(), 4000);
-    }
   }
 
   function resetScanner() {
-    document.getElementById('result-view').style.display = 'none';
-    startScanner();
+    isScanning = false;
+    show('start-view');
   }
-
-  startScanner();
 </script>
 </body>
 </html>
