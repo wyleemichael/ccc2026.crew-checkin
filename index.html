@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Crew Check-in</title>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -50,7 +49,6 @@
       text-transform: uppercase;
       margin-bottom: 32px;
     }
-    #start-view { display: block; }
     .btn {
       width: 100%;
       padding: 16px;
@@ -65,16 +63,35 @@
       text-transform: uppercase;
       cursor: pointer;
       margin-bottom: 12px;
+      display: block;
     }
     .btn:active { opacity: 0.7; }
+    #start-view { display: block; }
     #scan-view { display: none; }
-    #reader {
+    .video-wrap {
+      position: relative;
       width: 100%;
       border-radius: 12px;
       overflow: hidden;
       border: 1px solid rgba(200, 169, 110, 0.3);
       margin-bottom: 16px;
-      min-height: 300px;
+      background: #000;
+    }
+    #preview {
+      width: 100%;
+      display: block;
+      border-radius: 12px;
+    }
+    .scan-line {
+      position: absolute;
+      left: 10%; width: 80%;
+      height: 2px;
+      background: rgba(200, 169, 110, 0.7);
+      animation: scanMove 2s linear infinite;
+    }
+    @keyframes scanMove {
+      0% { top: 10%; }
+      100% { top: 90%; }
     }
     .scan-hint {
       font-size: 12px;
@@ -92,36 +109,23 @@
     }
     .icon { font-size: 52px; margin-bottom: 12px; }
     .status {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      margin-bottom: 20px;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 3px; text-transform: uppercase; margin-bottom: 20px;
     }
     .status.success { color: #c8a96e; }
     .status.warning { color: #e0a030; }
     .status.error { color: #8B2020; }
     .divider { width: 40px; height: 1px; background: rgba(200, 169, 110, 0.4); margin: 0 auto 20px; }
-    .name-cn {
-      font-family: 'Noto Serif SC', serif;
-      font-size: 28px; font-weight: 700;
-      color: #f0e6d3; letter-spacing: 4px; margin-bottom: 6px;
-    }
+    .name-cn { font-family: 'Noto Serif SC', serif; font-size: 28px; font-weight: 700; color: #f0e6d3; letter-spacing: 4px; margin-bottom: 6px; }
     .name-en { font-size: 13px; color: rgba(240, 230, 211, 0.7); letter-spacing: 1px; margin-bottom: 8px; }
     .role { font-family: 'Noto Serif SC', serif; font-size: 12px; color: rgba(200, 169, 110, 0.9); letter-spacing: 2px; }
     .detail { font-size: 11px; color: rgba(200, 169, 110, 0.6); letter-spacing: 1px; margin-top: 16px; }
     .event-name { font-size: 10px; color: rgba(240, 230, 211, 0.3); letter-spacing: 2px; text-transform: uppercase; margin-top: 24px; }
     #loading-view { display: none; padding: 60px 0; }
-    .spinner {
-      width: 40px; height: 40px;
-      border: 2px solid rgba(200, 169, 110, 0.2);
-      border-top-color: #c8a96e;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 16px;
-    }
+    .spinner { width: 40px; height: 40px; border: 2px solid rgba(200, 169, 110, 0.2); border-top-color: #c8a96e; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .loading-text { font-size: 12px; color: rgba(200, 169, 110, 0.6); letter-spacing: 2px; }
+    canvas { display: none; }
   </style>
 </head>
 <body>
@@ -131,11 +135,14 @@
   <div class="subtitle">Crew Check-in</div>
 
   <div id="start-view">
-    <button class="btn" onclick="startScanner()">开始扫描</button>
+    <button class="btn" id="startBtn" onclick="startScanner()">开始扫描</button>
   </div>
 
   <div id="scan-view">
-    <div id="reader"></div>
+    <div class="video-wrap">
+      <video id="preview" autoplay playsinline muted></video>
+      <div class="scan-line"></div>
+    </div>
     <div class="scan-hint">将 QR Code 对准框内</div>
     <button class="btn" onclick="stopScanner()">停止扫描</button>
   </div>
@@ -160,10 +167,13 @@
   </div>
 </div>
 
+<canvas id="canvas"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
 <script>
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzZstKPazsHqI4SkQWzZ8penmmWF3UTsX3po5hnZe93qQIBXhrcE1h4Lk1B_0hX2xbM/exec";
-  let html5QrCode = null;
-  let isScanning = false;
+  let stream = null;
+  let scanning = false;
+  let animFrame = null;
 
   function show(id) {
     ['start-view','scan-view','loading-view','result-view'].forEach(v => {
@@ -171,40 +181,56 @@
     });
   }
 
-  function startScanner() {
+  async function startScanner() {
     show('scan-view');
-    html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      (decodedText) => {
-        if (isScanning) return;
-        isScanning = true;
-        html5QrCode.stop().then(() => {
-          processQR(decodedText);
-        });
-      },
-      () => {}
-    ).catch(() => {
-      html5QrCode.start(
-        { facingMode: "user" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText) => {
-          if (isScanning) return;
-          isScanning = true;
-          html5QrCode.stop().then(() => {
-            processQR(decodedText);
-          });
-        },
-        () => {}
-      );
-    });
+    scanning = true;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      const video = document.getElementById('preview');
+      video.srcObject = stream;
+      video.play();
+      video.addEventListener('loadedmetadata', tick);
+    } catch(err) {
+      show('start-view');
+      alert('无法开启相机，请检查权限设置。\n' + err.message);
+    }
+  }
+
+  function tick() {
+    const video = document.getElementById('preview');
+    const canvas = document.getElementById('canvas');
+    if (!scanning) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code) {
+        scanning = false;
+        stopStream();
+        processQR(code.data);
+        return;
+      }
+    }
+    animFrame = requestAnimationFrame(tick);
+  }
+
+  function stopStream() {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
   }
 
   function stopScanner() {
-    if (html5QrCode) {
-      html5QrCode.stop().then(() => { show('start-view'); });
-    }
+    scanning = false;
+    stopStream();
+    if (animFrame) cancelAnimationFrame(animFrame);
+    show('start-view');
   }
 
   function processQR(url) {
@@ -236,7 +262,7 @@
   }
 
   function resetScanner() {
-    isScanning = false;
+    scanning = false;
     show('start-view');
   }
 </script>
